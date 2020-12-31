@@ -1,0 +1,45 @@
+---
+- name:
+  yum:
+    state: installed
+    name: ['pcre-devel', 'pcre', 'net-snmp-devel', 'libevent-devel']
+
+- name:
+  group:
+    name: zabbix
+    system: yes
+
+- name:
+  user:
+    name: zabbix
+    system: yes
+    state: present
+    group: zabbix
+    create_home: no
+    shell: /sbin/nologin
+
+- name:
+  file:
+    state: directory
+    path: "{{ item }}"
+  loop:
+  - '/etc/zabbix'
+  - '/opt/ansible_work'
+
+- name:
+  file:
+    state: directory
+    path: /var/log/zabbix
+    owner: zabbix
+    group: zabbix
+
+- name:
+  copy:
+    src: "zabbix-5.0.2.tar.gz"
+    dest: /opt/ansible_work
+
+- name:
+  unarchive:
+    remote_src: yes
+    src: /opt/ansible_work/zabbix-5.0.2.tar.gz
+    dest: /opt/ansible_work

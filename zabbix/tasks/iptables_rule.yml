@@ -1,0 +1,68 @@
+---
+- block:
+  - name: server | 创建自定义ZABBIX_CHAIN链
+    shell:
+      cmd: "iptables -t filter -N ZABBIX_CHAIN"
+    ignore_errors: yes
+    tags: ['always']
+  
+  - name: server | 安装server放行agent ip
+    iptables:
+      action: insert
+      chain: ZABBIX_CHAIN
+      jump: ACCEPT
+      source: "{{ item }}"
+    with_items:
+    - "{{ WHITE_LIST }}"
+    run_once: yes
+    when: zabbinx_role == 'server'
+  
+  - name: proxy | 安装proxy放行agent ip
+    iptables:
+      action: insert
+      chain: ZABBIX_CHAIN
+      jump: ACCEPT
+      source: "{{ item }}"
+    with_items:
+    - "{{ WHITE_LIST }}"
+    run_once: yes
+    tags: ['never', 'install_proxy']
+  
+  - name: all | ZABBIX_CHAIN链返回父链return
+    iptables:
+      chain: ZABBIX_CHAIN
+    tags: ['always']
+  
+  - name: all | 将zabbix自定义链添加到INPUT链
+    iptables:
+      action: insert
+      chain: INPUT
+      jump: ZABBIX_CHAIN
+      destination_port: "10051"
+      protocol: tcp
+      ctstate: NEW
+    run_once: yes
+    tags: ['always']
+  
+  - name: proxy | 添加proxy节点至server端白名单
+    iptables:
+      action: insert
+      chain: ZABBIX_CHAIN
+      jump: ACCEPT
+      source: "{{ item }}"
+    with_items:
+    - "{{ groups['zabbix_proxy'] }}"
+    run_once: yes
+    delegate_to: "{{ ZABBIX_SERVER_IP }}"
+    ignore_errors: yes
+    tags: ['never','install_proxy']
+  
+  - name: proxy | 保存iptables规则
+    shell: 'iptables-save > /etc/sysconfig/iptables'
+    delegate_to: "{{ groups['zabbix_server'][0] }}"
+    tags: ['never','install_proxy']
+  
+  - name: all | 保存iptables规则
+    shell: 'iptables-save > /etc/sysconfig/iptables'
+    tags: ['always']
+  when: IPTABLES_RULE == true

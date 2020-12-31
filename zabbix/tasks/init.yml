@@ -1,0 +1,58 @@
+---
+- name: server | 安装依赖包
+  yum:
+    state: installed
+    name: [wqy-microhei-fonts, libcurl, libcurl-devel, curl, libxml2, libxml2-devel, net-snmp-devel, libevent-devel]
+
+- name: proxy | 安装依赖包
+  yum:
+    state: installed
+#    name: ['pcre-devel', 'pcre', 'net-snmp-devel', 'libevent-devel']
+    name: ['pcre-devel', 'pcre', 'libevent-devel']
+  tags: ['install_proxy']
+
+- name: all | 创建zabbix用户组
+  group:
+    name: zabbix
+    system: yes
+  tags: ['always']
+
+- name: all | 创建zabbix用户
+  user:
+    name: zabbix
+    system: yes
+    state: present
+    group: zabbix
+    create_home: no
+    shell: /sbin/nologin
+  tags: ['always']
+
+- name: all | 生成配置目录
+  file:
+    state: directory
+    path: "{{ item }}"
+  loop:
+  - '/etc/zabbix'
+  - '/opt/ansible_work'
+  tags: ['always']
+
+- name: all | 创建日志目录
+  file:
+    state: directory
+    path: /var/log/zabbix
+    owner: zabbix
+    group: zabbix
+  tags: ['always']
+
+- name: all | 拷贝源码文件至被控端
+  copy:
+    src: "zabbix-5.0.2.tar.gz"
+    dest: /opt/ansible_work
+  tags: ['always']
+
+- name: all | 被控端解压源码文件
+  unarchive:
+    remote_src: yes
+    src: /opt/ansible_work/zabbix-5.0.2.tar.gz
+    dest: /opt/ansible_work
+  tags: ['always']

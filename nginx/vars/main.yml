@@ -1,0 +1,10 @@
+---
+
+NGINX_VERSION: 1.16.1
+NGINX_USER: www
+DOWNLOAD_URL: http://download.cnvito.top/download
+NGINX_DIR: /usr/local/nginx
+NGINX_LOG_DIR: /var/log/nginx
+WEBSITE_DIR: /data/web
+WORK_DIR: /opt/ansible_work
+IPTABLES_CHAIN: INPUT

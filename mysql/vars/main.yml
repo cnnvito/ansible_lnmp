@@ -1,0 +1,9 @@
+---
+
+MYSQL_VERSION: 5.7.32
+BOOST_VERSION: '1_59_0' 
+MYSQL_USER: mysql
+DOWNLOAD_URL: http://download.cnvito.top/download
+MYSQL_DIR: /usr/local/mysql-{{ MYSQL_VERSION }}
+MYSQL_DATA: /data/mysql
+WORK_DIR: /opt/ansible_work

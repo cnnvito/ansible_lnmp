@@ -1,0 +1,5 @@
+---
+- hosts: zabbix_server
+  remote_user: root
+  roles:
+    - {role: 'zabbix', zabbix_role: 'proxy', ZABBIX_NGINX_DOAMIN: 'localhost', IPTABLES_RULE: false}

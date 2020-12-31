@@ -1,0 +1,134 @@
+---
+
+- include: yum.yml
+
+- name: Create User Group.
+  group:
+    name: "{{ MYSQL_USER }}"
+
+- name: Create a running user.
+  user:
+    name: "{{ MYSQL_USER }}"
+    group: "{{ MYSQL_USER }}"
+    shell: /sbin/nologin
+    create_home: no
+
+- name: Create working directory.
+  file:
+    state: directory
+    path: "{{ WORK_DIR }}"
+
+- include: boost.yml
+
+- name: Copy mysql source code
+  copy:
+    src: "mysql-{{ MYSQL_VERSION }}.tar.gz"
+    dest: "{{ WORK_DIR }}"
+
+- name: Download source code and unzip
+  unarchive:
+    remote_src: yes
+#    src: '{{ DOWNLOAD_URL }}/mysql-{{ MYSQL_VERSION }}.tar.gz'
+    src: '{{ WORK_DIR }}/mysql-{{ MYSQL_VERSION }}.tar.gz'
+    dest: '{{ WORK_DIR }}'
+
+- name: Generate mysql compilation configuration file
+  shell:
+    cmd: '{{ item }}'
+  args:
+    chdir: '{{ WORK_DIR }}/mysql-{{ MYSQL_VERSION }}'
+  with_items:
+    - 'cmake -DCMAKE_INSTALL_PREFIX={{ MYSQL_DIR }} -DSYSCONFDIR=/etc -DWITH_MYISAM_STORAGE_ENGINE=1 -DWITH_INNOBASE_STORAGE_ENGINE=1 -DWITH_PARTITION_STORAGE_ENGINE=1 -DWITH_FEDERATED_STORAGE_ENGINE=1 -DEXTRA_CHARSETS=all -DDEFAULT_CHARSET=utf8mb4 -DDEFAULT_COLLATION=utf8mb4_general_ci -DWITH_EMBEDDED_SERVER=1 -DENABLED_LOCAL_INFILE=1 -DWITH_BOOST=/usr/local/src/boost_1_59_0'
+    - 'make'
+    - 'make install'
+
+- name: Copy the mysql startup configuration file
+  template:
+    src: my.cnf.j2
+    dest: /etc/my.cnf
+
+- name: Optimized configuration based on memory
+  script: opt-mysql.sh
+
+- name: Configure mysql data directory permissions
+  file:
+    state: directory
+    owner: mysql
+    group: mysql
+    path: '{{ MYSQL_DATA }}'
+
+- name: Mysql initialization
+  shell:
+    cmd: '{{ MYSQL_DIR }}/bin/mysqld --initialize-insecure --basedir={{ MYSQL_DIR }} --datadir={{ MYSQL_DATA }} --user={{ MYSQL_USER }}'
+
+- name: Configure mysql installation path permissions
+  file:
+    recurse: yes
+    group: mysql
+    path: '{{ MYSQL_DIR }}'
+
+- name: Copy service file
+  copy:
+    remote_src: yes
+    src: '{{ WORK_DIR }}/mysql-{{ MYSQL_VERSION }}/support-files/mysql.server'
+    dest: /etc/init.d/mysql
+    mode: 755
+
+- name: Copy service
+  copy:
+    src: mysql.service
+    dest: /usr/lib/systemd/system/mysql.service
+
+- name: Update mysql lib library
+  lineinfile:
+    path: /etc/ld.so.conf.d/mysql.conf
+    create: yes
+    line: '{{ item }}'
+  with_items:
+  - '{{ MYSQL_DIR }}/lib'
+  - '/usr/local/lib'
+
+- name: Apply ldconfig configuration
+  shell: ldconfig
+
+- name: Create a soft link
+  file:
+    state: link
+    path: '{{ item.path }}'
+    src: '{{ item.src }}'
+  with_items:
+  - { src: "{{ MYSQL_DIR }}", path: "/usr/local/mysql"}
+#  - { src: "{{ MYSQL_DIR }}/lib/mysql", path: "/usr/lib/mysql"}
+  - { src: "{{ MYSQL_DIR }}/include/mysql", path: "/usr/include/mysql"}
+  - { src: "{{ MYSQL_DIR }}/bin/mysql", path: "/usr/bin/mysql"}
+  - { src: "{{ MYSQL_DIR }}/bin/mysqldump", path: "/usr/bin/mysqldump"}
+  - { src: "{{ MYSQL_DIR }}/bin/myisamchk", path: "/usr/bin/myisamchk"}
+  - { src: "{{ MYSQL_DIR }}/bin/mysqld_safe", path: "/usr/bin/mysqld_safe"}
+  - { src: "{{ MYSQL_DIR }}/bin/mysqlcheck", path: "/usr/bin/mysqlcheck"}
+  - { src: "{{ MYSQL_DIR }}/bin/mysqladmin", path: "/usr/bin/mysqladmin"}
+
+- name: Mysql startup settings
+  systemd:
+    name: mysql.service
+    daemon-reload: yes
+    enabled: yes
+    state: started
+
+- name: Set root password and security configuration
+  script: sec-mysql.sh
+
+- name: Restart mysql
+  systemd:
+      name: mysql.service
+      state: restarted
+
+- name: Clean env
+  file:
+    state: absent
+    path: '{{ item }}'
+  with_items:
+  - '{{ MYSQL_DIR }}/mysql-test'
+  - '{{ MYSQL_DIR }}/README-test'
+  - '{{ WORK_DIR }}/mysql-{{ MYSQL_VERSION }}'
+  - '{{ WORK_DIR }}/mysql-{{ MYSQL_VERSION }}.tar.gz'
+  - '{{ WORK_DIR }}/boost_{{ BOOST_VERSION }}.tar.gz'

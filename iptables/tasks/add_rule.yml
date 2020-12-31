@@ -1,0 +1,12 @@
+---
+
+- name: INPUT | 添加iptables规则
+  iptables:
+    table: filter
+    chain: INPUT
+    ctstate: NEW
+    protocol: '{{ iptable_protocol }}'
+    destination_port: '{{ d_port }}'
+    source: '{{ source_ip }}'
+    jump: '{{ iptables_action }}'
+  tags: ['never','add_rule']

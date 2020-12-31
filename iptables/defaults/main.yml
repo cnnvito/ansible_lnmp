@@ -1,0 +1,4 @@
+---
+iptable_protocol: 'tcp'
+source_ip: '0.0.0.0'
+iptables_action: 'ACCEPT'

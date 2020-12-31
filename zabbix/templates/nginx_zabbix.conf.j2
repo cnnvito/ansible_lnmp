@@ -1,0 +1,15 @@
+server {
+    listen 8090;
+    server_name {{ ZABBIX_NGINX_DOAMIN }};
+    index index.php index.html;
+    root {{ zabbix_web_dir }};
+
+    include enable-php.conf;
+
+    location / {
+        index index.php index.html;
+        root {{ zabbix_web_dir }};
+    }
+    access_log /var/log/nginx/zabbix-access.log;
+    error_log /var/log/nginx/zabbix-error.log;
+}

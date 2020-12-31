@@ -1,0 +1,15 @@
+---
+
+- name: Use yum to install mysql to compile dependent components
+  yum: 
+    state: present
+    name:
+      - gcc 
+      - cmake 
+      - gcc-c++
+      - ncurses 
+      - flex
+      - bison
+      - zlib
+      - zlib-devel
+      - ncurses-devel 

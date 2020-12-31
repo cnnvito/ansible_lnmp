@@ -1,0 +1,79 @@
+---
+
+- include: yum.yml
+
+- name: Create User Group.
+  group:
+    name: "{{ NGINX_USER }}"
+
+- name: Create a running user.
+  user:
+    name: "{{ NGINX_USER }}"
+    group: "{{ NGINX_USER }}"
+    shell: /sbin/nologin
+    create_home: no
+
+- name: Create working directory.
+  file:
+    state: directory
+    path: "{{ WORK_DIR }}"
+
+- name: Copy nginx source code
+  copy:
+    src: "nginx-{{ NGINX_VERSION }}.tar.gz"
+    dest: "{{ WORK_DIR }}"
+
+- name: Unzip the source code.
+  unarchive:
+    remote_src: yes
+    src: "{{ WORK_DIR }}/nginx-{{ NGINX_VERSION }}.tar.gz"
+    dest: "{{ WORK_DIR }}"
+    creates: '{{ NGINX_DIR }}-{{ NGINX_VERSION }}/logs/nginx.pid'
+
+- name: Generate nginx compilation configuration file.
+  shell:
+    cmd: "{{ item }}"
+  args:
+    chdir: '{{ WORK_DIR }}/nginx-{{NGINX_VERSION}}'
+    creates: '{{ NGINX_DIR }}-{{ NGINX_VERSION }}/logs/nginx.pid'
+  with_items:
+  - './configure --prefix={{ NGINX_DIR }}-{{NGINX_VERSION}} --with-pcre --with-http_stub_status_module --user={{ NGINX_USER }} --group={{ NGINX_USER }} --with-http_ssl_module --with-http_gzip_static_module  --with-google_perftools_module --with-http_v2_module'
+  - 'make && make install'
+
+- name: Create soft link.
+  file:
+    state: link
+    src: '{{ NGINX_DIR }}-{{ NGINX_VERSION }}'
+    path: '{{ NGINX_DIR }}'
+
+- name: Create soft links for nginx binaries.
+  file:
+    state: link
+    src: '{{ NGINX_DIR }}/sbin/nginx'
+    path: /usr/sbin/nginx
+
+- include: files.yml
+
+- name: Set site directory permissions
+  file:
+    path: '{{ WEBSITE_DIR }}'
+    owner: '{{ NGINX_USER }}'
+    group: '{{ NGINX_USER }}'
+    recurse: yes
+
+- name: Set up nginx service process and start.
+  systemd:
+    name: nginx.service
+    state: started
+    enabled: yes
+    daemon-reload: yes
+
+- include: iptables.yml
+
+- name: Clear original file
+  file:
+    state: absent
+    path: '{{ item }}'
+  with_items:
+  - '{{ WORK_DIR }}/nginx-{{ NGINX_VERSION }}'
+  - '{{ WORK_DIR }}/nginx-{{ NGINX_VERSION }}.tar.gz'

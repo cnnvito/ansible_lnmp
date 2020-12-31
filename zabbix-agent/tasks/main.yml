@@ -1,0 +1,4 @@
+---
+- include: init.yml
+- include: install.yml
+- include: iptables_rule.yml

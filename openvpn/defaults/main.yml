@@ -1,0 +1,12 @@
+---
+private_network_segment: "10.251.1.0"
+server_port: "33972"
+client_user_name: "exampleuser"
+
+# 以下为证书的信息
+REQ_COUNTRY: 'CN'
+REQ_PROVINCE: "GUANGDONG"
+REQ_CITY: "GUANGZHOU"
+REQ_ORG: "COMPANY"
+REQ_EMAIL: "example@example.com"
+REQ_OU: "COMPANY"

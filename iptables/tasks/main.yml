@@ -1,0 +1,53 @@
+---
+
+- include: add_rule.yml
+
+- name: Install dependent components using yum
+  yum:
+    state: present
+    name:
+    - gcc
+    - gcc-c++
+    - iptables-services
+    - bzip2
+
+- name: Create working directory
+  file:
+    state: directory
+    path: '{{ WORK_DIR }}'
+
+- name: Copy iptables source code
+  unarchive:
+    src: 'iptables-{{ IPTABLES_VERSION }}.tar.bz2'
+    dest: '{{ WORK_DIR }}'
+
+- name: Generate iptables compilation configuration file
+  shell: 'cd {{ WORK_DIR }}/iptables-{{ IPTABLES_VERSION }} && ./configure --enable-devel --enable-libipq --prefix=/usr --bindir=/bin --sbindir=/sbin --sysconfdir=/etc --libdir=/lib64 --libexecdir=/lib64 --with-xtlibdir=/lib64/xtables --mandir=/usr/share/man --includedir=/usr/include --with-kernel=/usr --with-kbuild=/usr --with-ksource=/usr --disable-nftables'
+
+- name: make and make install
+  shell: 'cd {{ WORK_DIR }}/iptables-{{ IPTABLES_VERSION }} && make && make install'
+
+- name: Restart iptables service
+  systemd:
+    name: iptables
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: Clean dircetory
+  file:
+    state: absent
+    path: '{{ WORK_DIR }}/iptables-{{ IPTABLES_VERSION }}'
+
+- include: default_rule.yml
+
+- name:
+  shell: iptables-save > /etc/sysconfig/iptables
+  tags: add_rule
+  when: IPTABLES_SAVE == true
+
+- name: Restart iptables service
+  systemd:
+    name: iptables
+    state: restarted
+  when: IPTABLES_SAVE == true

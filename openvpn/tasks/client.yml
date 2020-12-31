@@ -1,0 +1,59 @@
+---
+
+- stat:
+    path: "/etc/openvpn/client/{{ client_user_name }}"
+  register: user_exists
+  tags:
+  - add_client
+
+- fail:
+    msg: "用户已存在,请修改用户名变量或删除用户目录"
+  when: user_exists.stat.exists
+  tags:
+  - add_client
+
+- name: "创建用户目录"
+  file:
+    state: directory
+    path: "/etc/openvpn/client/{{ client_user_name }}"
+  tags:
+  - add_client
+
+- name: "创建用户证书"
+  shell:
+    cmd: "{{ item }}" 
+  args:
+    chdir: /opt/ansible_work/EasyRSA-3.0.7
+  loop:
+  - "./easyrsa gen-req {{ client_user_name }} nopass"
+  - "./easyrsa sign client {{ client_user_name }}"
+  tags:
+  - add_client
+
+- name: "拷贝证书至用户目录"
+  copy:
+    remote_src: yes
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+  - {src: "/opt/ansible_work/EasyRSA-3.0.7/pki/ca.crt", dest: "/etc/openvpn/client/{{ client_user_name }}"}
+  - {src: "/opt/ansible_work/EasyRSA-3.0.7/pki/crl.pem", dest: "/etc/openvpn/cert/crl.pem"}
+  - {src: "/opt/ansible_work/EasyRSA-3.0.7/pki/issued/{{ client_user_name }}.crt", dest: "/etc/openvpn/client/{{ client_user_name }}"}
+  - {src: "/opt/ansible_work/EasyRSA-3.0.7/pki/private/{{ client_user_name }}.key", dest: "/etc/openvpn/client/{{ client_user_name }}"}
+  - {src: "/opt/ansible_work/EasyRSA-3.0.7/ta.key", dest: "/etc/openvpn/client/{{ client_user_name }}"}
+  tags:
+  - add_client
+
+- name: "生成客户端配置文件"
+  template:
+    src: client.conf.j2
+    dest: /etc/openvpn/client/{{ client_user_name }}/{{ client_user_name }}.ovpn
+  tags:
+  - add_client
+
+- name: "重启openvp"
+  systemd:
+    name: openvpn
+    state: restarted
+  tags:
+  - add_client

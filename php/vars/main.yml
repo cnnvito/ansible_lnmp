@@ -1,0 +1,7 @@
+---
+PHP_VERSION: 7.2.34
+DOWNLOAD_URL: http://download.cnvito.top/download
+
+PHP_USER: www
+PHP_DIR: /usr/local/php-{{ PHP_VERSION }}
+WORK_DIR: /opt/ansible_work

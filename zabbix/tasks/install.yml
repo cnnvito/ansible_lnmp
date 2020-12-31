@@ -1,0 +1,158 @@
+---
+- name: all | 检查agentd配置文件
+  stat:
+    path: "/etc/zabbix/zabbix_agentd.conf"
+  register: conf_exists
+  tags: ['always']
+
+- name: all | 检查zabbix web目录
+  stat:
+    path: "{{ zabbix_web_dir }}"
+  register: web_exists
+  tags: ['always']
+
+- name: all | 写入hosts文件
+  lineinfile:
+    dest: '/etc/hosts'
+    regexp: '.*{{ hostvars[item].hostname }}$'
+    line: '{{ hostvars[item].inventory_hostname }} {{ hostvars[item].hostname }}'
+    state: present
+  with_items:
+  - "{{ groups['zabbix_agent'] }}"
+  run_once: yes
+  when: groups['zabbix_agent']
+  tags: ['always']
+
+- name: server | server端创建zabbix用户及导入数据库
+  script:
+    cmd: 'create_db.sh server {{ lookup("password", "/data/zabbix/db_passwd-"+"{{ inventory_hostname }}") }}'
+  when: zabbix_role == 'server'
+  ignore_errors: yes
+
+- name: proxy | proxy端导入数据库
+  script:
+    cmd: 'create_db.sh proxy {{ lookup("password", "/data/zabbix/db_passwd-"+"{{ inventory_hostname }}") }}'
+  when: zabbix_role == 'proxy'
+  tags: ['install_proxy']
+  ignore_errors: yes
+
+- name: server | 生成编译文件
+  shell:
+    cmd: './configure --prefix=/usr/local/zabbix --enable-server --enable-agent --with-mysql=/usr/local/mysql/bin/mysql_config --with-net-snmp --with-libcurl --with-libxml2'
+  args:
+    chdir: /opt/ansible_work/zabbix-5.0.2
+
+- name: proxy | 生成编译文件
+  shell:
+    cmd: './configure --prefix=/usr/local/zabbix --enable-proxy --enable-agent --with-mysql=/usr/local/mysql/bin/mysql_config'
+  args:
+    chdir: /opt/ansible_work/zabbix-5.0.2
+  tags: ['never','install_proxy']
+
+- name: all | 编译安装
+  shell:
+    cmd: 'make install'
+  args:
+    chdir: /opt/ansible_work/zabbix-5.0.2
+  tags: ['always']
+
+- name: server | 生成server配置文件
+  template:
+    src: zabbix_server.conf.j2
+    dest: /etc/zabbix/zabbix_server.conf
+
+- name: proxy | 生成proxy配置文件
+  template:
+    src: zabbix_proxy.conf.j2
+    dest: /etc/zabbix/zabbix_proxy.conf
+  tags: ['install_proxy']
+
+- name: server | 生成agentd配置文件
+  template:
+    src: zabbix_agent.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+  when: not conf_exists.stat.exists
+  tags: ['install_proxy']
+
+- name: server | server启动脚本
+  copy:
+    src: zabbix_server.service
+    dest: /usr/lib/systemd/system/zabbix_server.service
+
+- name: proxy | proxy启动脚本
+  copy:
+    src: zabbix_proxy.service
+    dest: /usr/lib/systemd/system/zabbix_proxy.service
+  tags: ['install_proxy']
+
+- name: agent | agent启动脚本
+  copy:
+    src: zabbix_agent.service
+    dest: /usr/lib/systemd/system/zabbix_agent.service
+  when: not conf_exists.stat.exists
+  tags: ['install_proxy']
+
+- name: server | web站点文件
+  copy:
+    remote_src: yes
+    directory_mode: yes
+    src: /opt/ansible_work/zabbix-5.0.2/ui
+    dest: '{{ nginx_web_dir }}'
+    owner: www
+    group: www
+  when: not web_exists.stat.exists
+
+- name: server | web站点zabbix目录
+  shell: '/bin/mv {{ nginx_web_dir }}/ui {{ zabbix_web_dir }}'
+  when: not web_exists.stat.exists
+
+- name: server | nginx zabbix文件
+  template:
+    src: nginx_zabbix.conf.j2
+    dest: '{{ nginx_web_conf }}/zabbix.conf'
+
+- name: server | zabbix字体替换
+  copy:
+    remote_src: yes
+    src: /usr/share/fonts/wqy-microhei/wqy-microhei.ttc
+    dest: '{{ zabbix_web_dir }}/assets/fonts/DejaVuSans.ttf'
+    backup: yes
+    owner: www
+    group: www
+
+- include: iptables_rule.yml
+
+- name: nginx | 重载nginx配置文件
+  systemd:
+    name: nginx
+    state: reloaded
+
+- name: server | server守护进程
+  systemd:
+    name: '{{ item }}'
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  loop:
+  - 'zabbix_server'
+  - 'zabbix_agent'
+
+- name: proxy | proxy守护进程
+  systemd:
+    name: '{{ item }}'
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  loop:
+  - 'zabbix_proxy'
+  - 'zabbix_agent'
+  tags: ['never','install_proxy']
+
+- name: clear | 清理源码文件
+  file:
+    state: absent
+    path: '{{ item }}'
+  loop:
+  - '/opt/ansible_work/zabbix-5.0.2'
+  - '/opt/ansible_work/zabbix-5.0.2.tar.gz'
+  tags: ['never','install_proxy']

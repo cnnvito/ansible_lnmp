@@ -1,0 +1,22 @@
+---
+
+- name: "备份iptables规则"
+  shell: 'iptables-save > /opt/ansible_work/iptables_bak'
+
+- name: "使用iptables开放openvpn连接端口"
+  iptables:
+    action: append
+    chain: INPUT
+    protocol: udp
+    destination_port: "{{ server_port }}"
+    jump: ACCEPT
+
+- name: "动态SNAT"
+  iptables:
+    chain: POSTROUTING
+    table: nat
+    jump: MASQUERADE
+    source: "{{ private_network_segment }}/24"
+
+- name: "保存iptables转发规则"
+  shell: 'iptables-save > /etc/sysconfig/iptables'

@@ -1,0 +1,12 @@
+---
+
+- name: Copy boost source code
+  copy:
+    src: "boost_{{ BOOST_VERSION }}.tar.gz"
+    dest: "{{ WORK_DIR }}"
+
+- name: Install boost 1.59.0
+  unarchive:
+    remote_src: yes
+    src: '{{ WORK_DIR }}/boost_{{ BOOST_VERSION }}.tar.gz'
+    dest: /usr/local/src

@@ -1,0 +1,32 @@
+---
+- name:
+  yum:
+    state: present
+    name:
+      - gcc
+      - gcc-c++
+      - autoconf
+      - libxml2
+      - libxml2-devel
+      - openssl
+      - openssl-devel
+      - bzip2
+      - bzip2-devel
+      - libcurl
+      - libcurl-devel
+      - libjpeg
+      - libjpeg-devel
+      - libpng
+      - libpng-devel
+      - freetype
+      - freetype-devel
+      - gmp
+      - gmp-devel
+      - readline
+      - readline-devel
+      - libxslt
+      - libxslt-devel
+      - libicu-devel
+      - sqlite-devel
+      - oniguruma
+      - oniguruma-devel

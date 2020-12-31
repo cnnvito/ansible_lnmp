@@ -1,0 +1,104 @@
+---
+
+- name: Set default chain action ACCEPT
+  iptables:
+    policy: '{{ item.policy }}'
+    table: filter
+    chain: '{{ item.chain }}'
+  with_items:
+  - { chain: 'INPUT', policy: 'ACCEPT' }
+  - { chain: 'FORWARD', policy: 'ACCEPT' }
+
+- name: Clear the default rules
+  iptables:
+    table: '{{ item }}'
+    flush: yes
+  with_items:
+  - 'filter'
+  - 'nat'
+  when: FLUSH_ALL_RULE == true
+
+- name: Release all established connections
+  iptables:
+    table: filter
+    chain: INPUT
+    ctstate: RELATED,ESTABLISHED
+    jump: ACCEPT
+
+- name: Release icmp message
+  iptables:
+    table: filter
+    chain: INPUT
+    jump: ACCEPT
+    protocol: icmp
+
+- name: Release lo
+  iptables:
+    table: filter
+    chain: INPUT
+    in_interface: lo
+    jump: ACCEPT
+
+- name: Release private network segment
+  iptables:
+    table: filter
+    chain: INPUT
+    ctstate: NEW
+    jump: ACCEPT
+    source: '{{ ansible_default_ipv4.network }}/{{ ansible_default_ipv4.netmask }}'
+  when: ansible_default_ipv4
+
+- name: Common ports
+  iptables:
+    table: filter
+    chain: INPUT
+    ctstate: NEW
+    jump: ACCEPT
+    protocol: tcp
+    destination_port: '{{ item }}'
+  with_items:
+  - '22'
+  - '80'
+  - '443'
+
+#- name: Discard invalid packets
+#  iptables:
+#    table: filter
+#    chain: INPUT
+#    ctstate: INVALID
+#    jump: DROP
+
+#- name: Prohibit all other packages
+#  iptables:
+#    table: filter
+#    chain: '{{ item }}'
+#    reject_with: icmp-host-prohibited
+#    jump: REJECT
+#  with_items:
+#  - 'INPUT'
+#  - 'FORWARD'
+
+- name: Set default chain action
+  iptables:
+    policy: '{{ item.policy }}'
+    table: filter
+    chain: '{{ item.chain }}'
+  with_items:
+  - { chain: 'INPUT', policy: 'DROP' }
+  - { chain: 'FORWARD', policy: 'DROP' }
+  - { chain: 'OUTPUT', policy: 'ACCEPT'}
+
+#############################################################
+# Whitelist example
+#
+#- name: Whitelist
+#  iptables:
+#    table: filter
+#    chain: INPUT
+#    ctstate: NEW
+#    protocol: tcp
+#    destination_port: 8080
+#    to_ports: 8082
+#    source: 110.110.112.112
+#    jump: ACCEPT
+#############################################################

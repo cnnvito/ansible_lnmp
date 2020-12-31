@@ -1,0 +1,31 @@
+---
+- name: Create directory.
+  file:
+    state: directory
+    path: '{{ item }}'
+  with_items:
+  - '{{ NGINX_DIR }}/conf/vhost'
+  - '{{ NGINX_DIR }}/conf/vhost/example'
+  - '{{ WEBSITE_DIR }}/default'
+  - '{{ NGINX_LOG_DIR }}'
+
+- name: Copy configuration file.
+  copy:
+    dest: '{{ item.path }}'
+    src: '{{ item.src }}'
+  with_items:
+  - { src: 'proxy.conf', path: '{{ NGINX_DIR }}/conf/proxy.conf' }
+  - { src: 'enable-php.conf', path: '{{ NGINX_DIR }}/conf/enable-php.conf' }
+  - { src: 'deny-ip.conf.bak', path: '{{ NGINX_DIR }}/conf/vhost/deny-ip.conf.bak' }
+  - { src: 'index.html', path: '{{ WEBSITE_DIR}}/default/index.html' }
+
+- name: Generate configuration file.
+  template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+  with_items:
+  - { src: 'nginx.conf.j2', dest: '{{ NGINX_DIR }}/conf/nginx.conf' }
+  - { src: 'nginx.service.j2', dest: '/usr/lib/systemd/system/nginx.service' }
+  - { src: 'default.conf.j2', dest: '{{ NGINX_DIR }}/conf/vhost/default.conf' }
+  - { src: 'proxy-example.conf.j2', dest: '{{ NGINX_DIR }}/conf/vhost/example/proxy-example.conf.j2' }
+  - { src: 'enable-ssl-example.conf.j2', dest: '{{ NGINX_DIR }}/conf/vhost/example/enable-ssl-example.conf' }

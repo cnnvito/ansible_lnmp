@@ -1,0 +1,146 @@
+---
+- name: "创建openvpn程序用户"
+  user:
+    name: openvpn
+    state: present
+    create_home: no
+    shell: /sbin/nologin
+
+- name: "创建用户组"
+  group:
+    name: openpvn
+    state: present
+
+- name: "创建相关目录"
+  file:
+    path: "{{ item }}" 
+    state: directory
+  loop:
+  - "/opt/ansible_work"
+  - "/etc/openvpn/cert"
+  - "/var/log/openvpn"
+  - "/etc/openvpn/client"
+
+- name: "安装依赖模块"
+  yum:
+    name: ["gcc","gcc-c++","python-pip","lzo","lzo-devel","openssl","openssl-devel","pam","pam-devel"]
+    state: present
+
+- name: "拷贝源码"
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+  - {src: "openvpn-2.4.9.tar.gz", dest: "/usr/local/src"}
+  - {src: "EasyRSA-3.0.7.tgz", dest: "/opt/ansible_work"}
+  - {src: "openvpn.service", dest: "/usr/lib/systemd/system/openvpn.service"}
+
+- name: "解压源码"
+  unarchive:
+    remote_src: yes
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop:
+  - {src: "/usr/local/src/openvpn-2.4.9.tar.gz", dest: "/usr/local/src"}
+  - {src: "/opt/ansible_work/EasyRSA-3.0.7.tgz", dest: "/opt/ansible_work"}
+
+- name: "证书信息"
+  template:
+    src: vars.j2
+    dest: /opt/ansible_work/EasyRSA-3.0.7/vars
+
+- stat:
+    path: "/usr/local/openvpn/sbin/openvpn"
+  register: openvpn_bin
+- name: "生成openvpn编译makefile"
+  shell:
+    cmd: ./configure --prefix=/usr/local/openvpn
+  args:
+    chdir: /usr/local/src/openvpn-2.4.9
+  when: not openvpn_bin.stat.exists
+
+- name: "编译&安装"
+  shell:
+    cmd: make && make install
+  args:
+    chdir: /usr/local/src/openvpn-2.4.9
+  when: not openvpn_bin.stat.exists
+
+
+- stat:
+    path: /opt/ansible_work/EasyRSA-3.0.7/ca.crt
+  register: ca_exists
+- stat:
+    path: /opt/ansible_work/EasyRSA-3.0.7/ta.key
+  register: ta_exists
+- stat:
+    path: /opt/ansible_work/EasyRSA-3.0.7/pki/dh.pem
+  register: dh_exists
+- stat: 
+    path: /opt/ansible_work/EasyRSA-3.0.7/pki/issued/server.crt
+  register: crt_exists
+- stat:
+    path: /opt/ansible_work/EasyRSA-3.0.7/pki/issued/server.key
+  register: key_exists
+
+- name: "生成服务端证书"
+  shell: "{{ item }}"
+  args:
+    chdir: /opt/ansible_work/EasyRSA-3.0.7
+  loop:
+  - 'echo "yes" | ./easyrsa init-pki'
+  - './easyrsa build-ca nopass'
+  - './easyrsa gen-crl'
+  - './easyrsa gen-req server nopass'
+  - './easyrsa sign server server'
+  - '/usr/local/openvpn/sbin/openvpn --genkey --secret ta.key'
+  - './easyrsa gen-dh'
+  when: not dh_exists.stat.exists and not crt_exists.stat.exists and not key_exists.stat.exists
+
+- name: "拷贝证书相关文件至/etc/openvpn"
+  copy:
+    remote_src: yes
+    src: "{{ item }}"
+    dest: "/etc/openvpn/cert"
+    mode: "0600"
+  loop:
+  - "/opt/ansible_work/EasyRSA-3.0.7/ta.key"
+  - "/opt/ansible_work/EasyRSA-3.0.7/pki/dh.pem"
+  - "/opt/ansible_work/EasyRSA-3.0.7/pki/ca.crt"
+  - "/opt/ansible_work/EasyRSA-3.0.7/pki/crl.pem"
+  - "/opt/ansible_work/EasyRSA-3.0.7/pki/issued/server.crt"
+  - "/opt/ansible_work/EasyRSA-3.0.7/pki/private/server.key"
+
+- name: "生成服务端配置文件"
+  template:
+    src: server.conf.j2
+    dest: /etc/openvpn/server.conf
+
+- name: "开启转发"
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: yes
+
+- include: iptables.yml
+
+- include: client.yml
+
+- name: "启动openvpn"
+  systemd:
+    name: openvpn
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: "清除相关文件"
+  file:
+    state: absent
+    path: "{{ item }}"
+  loop:
+  - "/usr/local/src/openvpn-2.4.9"
+  - "/usr/local/src/openvpn-2.4.9.tar.gz"
+  - "/opt/ansible_work/EasyRSA-3.0.7.tgz"
+
+- include: revoke.yml

@@ -1,0 +1,6 @@
+---
+- hosts: v2ray_server
+  remote_user: root
+  roles:
+  - iptables
+  - nginx

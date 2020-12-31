@@ -1,0 +1,139 @@
+---
+
+- include: yum.yml
+
+- name: Create User Group.
+  group:
+    name: "{{ PHP_USER }}"
+
+- name: Create a running user.
+  user:
+    name: "{{ PHP_USER }}"
+    group: "{{ PHP_USER }}"
+    shell: /sbin/nologin
+    create_home: no
+
+- name: Create working directory.
+  file:
+    state: directory
+    path: "{{ WORK_DIR }}"
+
+- name: Copy php source code
+  copy:
+    src: "php-{{ PHP_VERSION }}.tar.gz"
+    dest: "{{ WORK_DIR }}"
+
+- name: Download source code and unzip
+  unarchive:
+    remote_src: yes
+    src: '{{ WORK_DIR }}/php-{{ PHP_VERSION }}.tar.gz'
+    dest: "{{ WORK_DIR }}"
+    creates: '{{ WORK_DIR }}/php-{{ PHP_VERSION }}/sapi/fpm/php-fpm.service'
+
+- name: Generate compile configuration file
+  shell:
+    cmd: '{{ item }}'
+  args:
+    chdir: '{{ WORK_DIR }}/php-{{ PHP_VERSION }}'
+    creates: '{{ WORK_DIR }}/php-{{ PHP_VERSION }}/sapi/fpm/php-fpm.service'
+  with_items:
+    - './configure --prefix={{ PHP_DIR }} --with-config-file-path={{ PHP_DIR }}/etc --with-config-file-scan-dir={{ PHP_DIR }}/conf.d --enable-fpm --with-fpm-user={{ PHP_USER }} --with-fpm-group={{ PHP_USER }} --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd --with-iconv-dir --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib --with-libxml-dir=/usr --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex --enable-mbstring --enable-intl --enable-pcntl --enable-ftp --with-gd --with-openssl --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-zip --enable-soap --with-gettext with_fileinfo="" --enable-opcache --with-xsl'
+  register: conf_result
+
+- name: 'make && make install'
+  shell: 'make && make install'
+  args:
+    chdir: '{{ WORK_DIR }}/php-{{ PHP_VERSION }}'
+  when: conf_result.changed == true
+
+- name: Create soft links for php related configuration files
+  file:
+    state: link
+    src: '{{ item.src }}'
+    path: '{{ item.path }}'
+  with_items:
+  - { src: '{{ PHP_DIR }}', path: '/usr/local/php' }
+  - { src: '/usr/local/php/bin/php', path: '/usr/bin/php' }
+  - { src: '/usr/local/php/bin/phpize', path: '/usr/bin/phpize' }
+  - { src: '/usr/local/php/bin/pear', path: '/usr/bin/pear' }
+  - { src: '/usr/local/php/bin/pecl', path: '/usr/bin/pecl' }
+#  - { src: '{{ PHP_DIR }}/bin/php', path: '/usr/bin/php' }
+#  - { src: '{{ PHP_DIR }}/bin/phpize', path: '/usr/bin/phpize' }
+#  - { src: '{{ PHP_DIR }}/bin/pear', path: '/usr/bin/pear' }
+#  - { src: '{{ PHP_DIR }}/bin/pecl', path: '/usr/bin/pecl' }
+#  - { src: '{{ PHP_DIR }}', path: '/usr/local/php' }
+
+- name: Get php module loading path
+  shell:
+    cmd: php -i | grep extension_dir | grep php | awk '{print $5}'
+  register: EXT_DIR
+
+- name: Add redis module 1
+  copy:
+    src: redis.so
+    dest: '{{ EXT_DIR.stdout }}/redis.so'
+    mode: '0755'
+
+- name: Create a configuration file directory
+  file:
+    state: directory
+    path: '{{ item }}'
+  with_items:
+  - '{{ PHP_DIR }}/etc'
+  - '{{ PHP_DIR }}/conf.d'
+
+- name: Copy the startup file and php.ini file
+  copy:
+    remote_src: yes
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}' 
+  with_items:
+  - { src: "{{ WORK_DIR }}/php-{{ PHP_VERSION }}/sapi/fpm/php-fpm.service", dest: "/usr/lib/systemd/system/php-fpm.service"}
+  - { src: "{{ WORK_DIR }}/php-{{ PHP_VERSION }}/php.ini-production", dest: "{{ PHP_DIR }}/etc/php.ini"}
+
+- name: Replace php version
+  replace:
+    path: "/usr/lib/systemd/system/php-fpm.service"
+    regexp: "php-{{ PHP_VERSION }}"
+    replace: php
+
+- name: Copy template files
+  template:
+    src: '{{ item.src }}'
+    dest: '{{ item.dest }}'
+    mode: '{{ item.mode }}'
+  with_items:
+  - { src: "php-fpm.conf.j2", dest: "{{ PHP_DIR }}/etc/php-fpm.conf", mode: "0644"}
+
+- name: Execute script
+  script: 
+    cmd: '{{ item }}'
+  with_items:
+  - 'php-ini.sh'
+  - 'opt-php.sh'
+
+- name: Add redis module 2
+  lineinfile:
+    path: '{{ PHP_DIR }}/etc/php.ini'
+    regexp: '^extension='
+    line: extension=redis.so
+
+- name: close systemctl PrivateTmp
+  lineinfile:
+    path: '/usr/lib/systemd/system/php-fpm.service'
+    regexp: '^PrivateTmp=true$'
+    line: 'PrivateTmp=false'
+
+- name: Configure php to start
+  systemd:
+    name: php-fpm.service
+    daemon-reload: yes
+    state: started
+    enabled: yes
+
+- name: Clear original file
+  file:
+    state: absent
+    path: '{{ item }}'
+  with_items:
+  - '{{ WORK_DIR }}/php-{{ PHP_VERSION }}.tar.gz'

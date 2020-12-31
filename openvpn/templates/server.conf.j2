@@ -1,0 +1,29 @@
+local 0.0.0.0
+port {{ server_port }}
+user openvpn
+group openvpn
+proto udp
+dev tun
+ca /etc/openvpn/cert/ca.crt
+cert /etc/openvpn/cert/server.crt
+key /etc/openvpn/cert/server.key
+dh /etc/openvpn/cert/dh.pem
+server {{ private_network_segment }} 255.255.255.0
+ifconfig-pool-persist /etc/openvpn/ipp.txt
+push "route {{ ansible_default_ipv4.network }} {{ ansible_default_ipv4.netmask }}"
+push "dhcp-option DNS 8.8.8.8"
+#push "redirect-gateway def1"
+tls-auth /etc/openvpn/cert/ta.key
+crl-verify /etc/openvpn/cert/crl.pem
+duplicate-cn
+client-to-client
+keepalive 10 120
+cipher AES-256-CBC
+comp-lzo
+persist-key
+persist-tun
+log /var/log/openvpn/server.log
+log-append /var/log/openvpn/server.log
+status /var/log/openvpn/openvpn-status.log
+verb 3
+explicit-exit-notify 1

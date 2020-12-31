@@ -1,0 +1,49 @@
+---
+- name: Install dependencies
+  yum:
+    state: present
+    name:
+    - yum-utils
+    - device-mapper-persistent-data
+    - lvm2
+
+- name: Add docker repository
+  yum_repository:
+    state: present
+    file: docker-ce
+    name: docker-ce-stable
+    description: Docker CE Stable - $basearch
+    baseurl: "https://mirrors.aliyun.com/docker-ce/linux/centos/7/x86_64/stable"
+    gpgkey: "https://mirrors.aliyun.com/docker-ce/linux/centos/gpg"
+    gpgcheck: yes
+    enabled: yes
+
+- name: install docker-ce
+  yum:
+    state: present
+    name: docker-ce
+
+- name: systemd for docker
+  systemd:
+    state: started
+    name: docker
+    enabled: yes
+
+- name: copy docker daemon.json
+  copy:
+    src: daemon.json
+    dest: /etc/docker/daemon.json
+
+- name: set ip forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    sysctl_set: yes
+    reload: yes
+
+- name: systemcrl reload
+  systemd:
+    name: docker
+    daemon-reload: yes
+    state: restarted

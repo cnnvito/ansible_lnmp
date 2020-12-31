@@ -1,0 +1,14 @@
+---
+- name: Install nginx compile dependent components.
+  yum:
+    name:
+      - gcc
+      - gcc-c++
+      - pcre
+      - pcre-devel
+      - zlib
+      - zlib-devel
+      - openssl
+      - openssl-devel
+      - gperftools
+    state: present

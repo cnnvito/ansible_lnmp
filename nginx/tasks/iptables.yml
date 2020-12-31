@@ -1,0 +1,17 @@
+---
+
+- name: Use Iptables to open ports 80 and 443
+  iptables:
+    action: append
+    table: filter
+    chain: '{{ IPTABLES_CHAIN }}'
+    protocol: tcp
+    destination_port: '{{ item }}'
+    ctstate: NEW
+    jump: ACCEPT
+  with_items:
+  - '80'
+  - '443'
+
+- name: Save iptables rules
+  shell: iptables-save > /etc/sysconfig/iptables

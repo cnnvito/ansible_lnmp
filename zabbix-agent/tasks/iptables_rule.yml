@@ -1,0 +1,46 @@
+---
+- block:
+  - name: server | 创建自定义ZABBIX_CHAIN链
+    shell:
+      cmd: "iptables -t filter -N ZABBIX_CHAIN"
+    ignore_errors: yes
+    delegate_to: "{{ ZABBIX_SERVER_IP }}"
+    register: result
+
+  - name: all | 将zabbix自定义链添加到INPUT链
+    iptables:
+      action: insert
+      chain: INPUT
+      jump: ZABBIX_CHAIN
+      destination_port: "10050"
+      protocol: tcp
+      ctstate: NEW
+    run_once: yes
+    delegate_to: "{{ ZABBIX_SERVER_IP }}"
+    when: result.changed == true
+
+  - name: "agent端口放行"
+    iptables:
+      action: insert
+      chain: INPUT
+      rule_num: 3
+      jump: ACCEPT
+      source: "{{ ZABBIX_SERVER_IP }}"
+      destination_port: "10050"
+      protocol: tcp
+      ctstate: NEW
+      comment: "zabbix-server whitelist"
+  
+  - name: "server端放行agent ip"
+    iptables:
+      action: insert
+      chain: ZABBIX_CHAIN
+      jump: ACCEPT
+      source: "{{ inventory_hostname }}"
+    run_once: yes
+    delegate_to: "{{ ZABBIX_SERVER_IP }}"
+  
+  - name: "保存iptables规则"
+    shell: 'iptables-save > /etc/sysconfig/iptables'
+    delegate_to: "{{ groups['zabbix_server'][0] }}"
+  when: IPTABLES_RULE

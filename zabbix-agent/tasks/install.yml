@@ -1,0 +1,61 @@
+---
+- name: "agent添加进/etc/hosts"
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '.*{{ hostvars[item].hostname }}$'
+    line: '{{ hostvars[item].inventory_hostname }} {{ hostvars[item].hostname }}'
+    state: present
+  with_items:
+  - "{{ groups['zabbix_agent'] }}"
+  run_once: yes
+  when: groups['zabbix_agent']
+  delegate_to: "{{ ZABBIX_SERVER_IP }}"
+
+- name:
+  shell:
+    cmd: './configure --prefix=/usr/local/zabbix --enable-agent'
+  args:
+    chdir: /opt/ansible_work/zabbix-5.0.2
+
+- name:
+  shell:
+    cmd: 'make install'
+  args:
+    chdir: /opt/ansible_work/zabbix-5.0.2
+
+- name:
+  template:
+    src: zabbix_agent.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+
+- name:
+  copy:
+    src: zabbix_agent.service
+    dest: /usr/lib/systemd/system/zabbix_agent.service
+
+- name:
+  copy:
+    remote_src: yes
+    src: "{{ item }}"
+    dest: "/usr/local/zabbix/etc/zabbix_agentd.conf.d"
+  loop:
+#  - "/opt/ansible_work/zabbix-5.0.2/conf/zabbix_agentd/userparameter_examples.conf"
+  - "/opt/ansible_work/zabbix-5.0.2/conf/zabbix_agentd/userparameter_mysql.conf"
+
+
+- include: iptables_rule.yml
+
+- name:
+  systemd:
+    name: zabbix_agent
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name:
+  file:
+    state: absent
+    path: '{{ item }}'
+  loop:
+  - '/opt/ansible_work/zabbix-5.0.2'
+  - '/opt/ansible_work/zabbix-5.0.2.tar.gz'

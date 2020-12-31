@@ -1,0 +1,12 @@
+[Unit]
+Description=openvpn manager
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/openvpn/sbin/openvpn --config /etc/openvpn/server.conf --daemon
+ExecReload=/bin/kill -HUP $MAINPID
+WorkingDirectory=/etc/openvpn
+
+[Install]
+WantedBy=multi-user.target

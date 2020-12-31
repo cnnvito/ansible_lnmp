@@ -1,0 +1,19 @@
+{% if ZABBIX_SERVER_TYPE == 'server' %}
+LogFile=/var/log/zabbix/zabbix_agentd.log
+LogFileSize=500
+DebugLevel=3
+Server={{ ZABBIX_SERVER_IP }}
+ServerActive={{ ZABBIX_SERVER_IP }}
+Hostname={{ hostname }}
+HostnameItem=system.hostname
+HostMetadataItem=system.uname
+{% endif %}
+{% if ZABBIX_SERVER_TYPE == 'proxy' %}
+LogFile=/var/log/zabbix/zabbix_agentd.log
+LogFileSize=500
+DebugLevel=3
+Server={{ ZABBIX_SERVER_IP }}
+ServerActive={{ ZABBIX_SERVER_IP }}
+#Hostname={{ hostname }}
+{% endif %}
+Include=/usr/local/zabbix/etc/zabbix_agentd.conf.d/*.conf
