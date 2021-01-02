@@ -7,21 +7,18 @@
     state: present
   with_items:
   - "{{ groups['zabbix_agent'] }}"
-  run_once: yes
   when: groups['zabbix_agent']
   delegate_to: "{{ ZABBIX_SERVER_IP }}"
+  run_once: yes
 
 - name:
   shell:
-    cmd: './configure --prefix=/usr/local/zabbix --enable-agent'
+    cmd: "{{ item }}"
   args:
     chdir: /opt/ansible_work/zabbix-5.0.2
-
-- name:
-  shell:
-    cmd: 'make install'
-  args:
-    chdir: /opt/ansible_work/zabbix-5.0.2
+  loop:
+  - './configure --prefix=/usr/local/zabbix --enable-agent'
+  - 'make install'
 
 - name:
   template:
@@ -39,11 +36,7 @@
     src: "{{ item }}"
     dest: "/usr/local/zabbix/etc/zabbix_agentd.conf.d"
   loop:
-#  - "/opt/ansible_work/zabbix-5.0.2/conf/zabbix_agentd/userparameter_examples.conf"
   - "/opt/ansible_work/zabbix-5.0.2/conf/zabbix_agentd/userparameter_mysql.conf"
-
-
-- include: iptables_rule.yml
 
 - name:
   systemd:

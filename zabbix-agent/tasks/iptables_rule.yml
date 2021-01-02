@@ -37,6 +37,7 @@
       chain: ZABBIX_CHAIN
       jump: ACCEPT
       source: "{{ inventory_hostname }}"
+      comment: "zabbix-server whitelist"
     run_once: yes
     delegate_to: "{{ ZABBIX_SERVER_IP }}"
   

@@ -33,7 +33,7 @@
   script:
     cmd: 'create_db.sh proxy {{ lookup("password", "/data/zabbix/db_passwd-"+"{{ inventory_hostname }}") }}'
   when: zabbix_role == 'proxy'
-  tags: ['install_proxy']
+  tags: ['never','install_proxy']
   ignore_errors: yes
 
 - name: server | 生成编译文件
