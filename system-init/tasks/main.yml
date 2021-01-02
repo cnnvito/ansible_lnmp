@@ -1,5 +1,4 @@
 ---
-
 - name: 添加公钥
   authorized_key:
     user: root
@@ -55,7 +54,7 @@
     state: stopped
     enabled: no
 
-- name:
+- name: 自定义vim配置
   lineinfile:
     path: /etc/vimrc
     regexp: r'{{ item }}'
@@ -86,17 +85,29 @@
   - {'key_name': 'net.ipv4.tcp_max_syn_backlog', 'value_name': '1024'}
   - {'key_name': 'net.ipv4.tcp_synack_retries', 'value_name': '2'}
 
-- name:
-  lineinfile:
-    path: /etc/security/limits.conf
-    regexp: r'{{ item }}'
-    line: '{{ item }}'
-    state: present
+#- name:
+#  lineinfile:
+#    path: /etc/security/limits.conf
+#    regexp: r'{{ item }}'
+#    line: '{{ item }}'
+#    state: present
+#  loop:
+#  - 'root soft nofile 65535'
+#  - 'root hard nofile 65535'
+#  - '* soft nofile 65535'
+#  - '* hard nofile 65535'
+
+- name: 修改文件描述符
+  pam_limits:
+    domain: '{{ item.domain }}'
+    limit_type: '{{ item.limit_type }}'
+    limit_item: '{{ item.limit_item }}'
+    value: '{{ item.limit_value }}'
   loop:
-  - 'root soft nofile 65535'
-  - 'root hard nofile 65535'
-  - '* soft nofile 65535'
-  - '* hard nofile 65535'
+  - {'domain': 'root', 'limit_type': 'soft', 'limit_item': 'nofile', 'limit_value': '65535'}
+  - {'domain': 'root', 'limit_type': 'hard', 'limit_item': 'nofile', 'limit_value': '65535'}
+  - {'domain': '*', 'limit_type': 'soft', 'limit_item': 'nofile', 'limit_value': '65535'}
+  - {'domain': '*', 'limit_type': 'hard', 'limit_item': 'nofile', 'limit_value': '65535'}
 
 - name: 重启ssh服务器
   systemd:
