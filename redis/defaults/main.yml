@@ -1,0 +1,15 @@
+---
+
+ANSIBLE_PATH: '/opt/ansible_work'
+SOFWARE_PATH: '/usr/local'
+
+REDIS_USER: redis
+BIND_ADDR: '127.0.0.1'
+REDIS_VERSION: '5.0.9'
+REDIS_LOGIN_PASSWORD: false
+REDIS_INSTALL_PATH: '/usr/local/redis-{{ REDIS_VERSION }}'
+REDIS_LOG_PATH: '/var/log/redis-{{ REDIS_VERSION}}'
+REDIS_CONFIGURE_PATH: '/etc/redis-{{ REDIS_VERSION }}'
+
+IPTABLES_RULE: FALSE
+IPTABLES_CHAIN: INPUT

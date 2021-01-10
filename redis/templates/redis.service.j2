@@ -1,0 +1,19 @@
+[Unit]
+After=network.target
+Description=Advanced key-value store
+Documentation=http://redis.io/documentation
+
+[Service]
+Type=forking
+ExecStart={{ SOFWARE_PATH }}/redis/bin/redis-server {{ REDIS_CONFIGURE_PATH}}/redis.conf
+ExecStop=/bin/kill -s TERM $MAINPID
+PIDFile=/tmp/redis-{{ REDIS_VERSION }}.pid
+TimeoutStopSec=0
+Restart=always
+User={{ REDIS_USER }}
+Group={{ REDIS_USER }}
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
+Alias=redis.service

@@ -1,0 +1,66 @@
+---
+
+- name:
+  shell:
+    cmd: '{{ item }}'
+  args:
+    chdir: '{{ ANSIBLE_PATH }}/redis-{{ REDIS_VERSION }}'
+  loop:
+  - 'make MALLOC=libc V=$(nproc)'
+  - 'make PREFIX={{ REDIS_INSTALL_PATH }} install'
+
+- name:
+  file:
+    state: link
+    src: '{{ REDIS_INSTALL_PATH }}'
+    path: '{{ SOFWARE_PATH }}/redis'
+
+- name:
+  template:
+    src: redis.conf.j2
+    dest: '{{ REDIS_CONFIGURE_PATH }}/redis.conf'
+
+- name:
+  template:
+    src: redis.service.j2
+    dest: /usr/lib/systemd/system/redis.service
+
+- name:
+  sysctl:
+   name: vm.overcommit_memory
+   value: 1
+   state: present
+   reload: yes
+
+- name:
+  shell: echo 512 > /proc/sys/net/core/somaxconn
+
+- name:
+  shell:
+    cmd: "echo never > {{ item }}"
+  with_items:
+    - '/sys/kernel/mm/transparent_hugepage/enabled'
+    - '/sys/kernel/mm/transparent_hugepage/defrag'
+
+- name:
+  lineinfile:
+    dest: /etc/rc.local
+    line: 'echo never > {{ item }}'
+  with_items:
+    - '/sys/kernel/mm/transparent_hugepage/enabled'
+    - '/sys/kernel/mm/transparent_hugepage/defrag'
+
+- name:
+  systemd:
+    name: redis
+    state: started
+    daemon-reload: yes
+    enabled: yes
+
+- name:
+  file:
+    path: '{{ item }}'
+    state: absent
+  loop:
+  - '{{ ANSIBLE_PATH }}/redis-{{ REDIS_VERSION }}.tar.gz'
+  - '{{ ANSIBLE_PATH }}/redis-{{ REDIS_VERSION }}'

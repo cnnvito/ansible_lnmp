@@ -1,0 +1,19 @@
+---
+
+- block:
+  - name: 
+    iptables:
+      action: append
+      table: filter
+      chain: '{{ IPTABLES_CHAIN }}'
+      protocol: tcp
+      destination_port: '{{ item }}'
+      ctstate: NEW
+      jump: ACCEPT
+    with_items:
+    - '6379'
+  
+  - name: Save iptables rules
+    shell: iptables-save > /etc/sysconfig/iptables
+
+  when: IPTABLES_RULE

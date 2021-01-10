@@ -1,0 +1,51 @@
+---
+
+- name:
+  file:
+    state: directory
+    path: '{{ item }}'
+  loop:
+  - '{{ ANSIBLE_PATH }}'
+  - '{{ REDIS_LOG_PATH }}'
+  - '{{ REDIS_CONFIGURE_PATH }}'
+
+- name:
+  file:
+    path: '{{ REDIS_LOG_PATH }}'
+    owner: '{{ REDIS_USER }}'
+
+- name:
+  yum:
+    state: installed
+    name: '{{ item }}'
+  loop:
+  - 'gcc'
+  - 'gcc-c++'
+  - 'libtool'
+  - 'make'
+  - 'tcl'
+
+- name:
+  group:
+    name: '{{ REDIS_USER }}'
+    state: present
+
+- name:
+  user:
+    name: '{{ REDIS_USER }}'
+    group: '{{ REDIS_USER }}'
+    state: present
+    shell: /sbin/nologin
+    create_home: no
+
+- name:
+  copy:
+    src: "redis-{{ REDIS_VERSION }}.tar.gz"
+    dest: "{{ ANSIBLE_PATH }}"
+
+- name:
+  unarchive:
+    remote_src: yes
+    src: '{{ ANSIBLE_PATH }}/redis-{{ REDIS_VERSION }}.tar.gz'
+    dest: '{{ ANSIBLE_PATH }}'
+

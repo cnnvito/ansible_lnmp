@@ -1,0 +1,12 @@
+daemonize yes
+pidfile /tmp/redis-{{ REDIS_VERSION }}.pid
+bind {{ BIND_ADDR }}
+port 6379
+tcp-backlog 511
+tcp-keepalive 0
+maxclients 20000
+loglevel notice
+logfile {{ REDIS_LOG_PATH }}/redis-server.log
+{% if REDIS_LOGIN_PASSWORD is true %}
+requirepass {{ REDIS_LOGIN_PASSWORD }}
+{% endif %}
