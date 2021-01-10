@@ -10,3 +10,4 @@ logfile {{ REDIS_LOG_PATH }}/redis-server.log
 {% if REDIS_LOGIN_PASSWORD is true %}
 requirepass {{ REDIS_LOGIN_PASSWORD }}
 {% endif %}
+maxmemory 1000mb
