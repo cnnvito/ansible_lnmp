@@ -30,3 +30,4 @@
       - sqlite-devel
       - oniguruma
       - oniguruma-devel
+      - libzip-devel
