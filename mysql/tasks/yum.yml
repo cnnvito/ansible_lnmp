@@ -12,4 +12,5 @@
       - bison
       - zlib
       - zlib-devel
-      - ncurses-devel 
+      - ncurses-devel
+      - openssl-devel
